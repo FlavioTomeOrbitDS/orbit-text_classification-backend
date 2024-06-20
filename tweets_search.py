@@ -3,9 +3,7 @@ import pandas as pd
 import time
 import utils_conf
 
-bearer_token = utils_conf.get_api_key('bearer_token')
-
-def get_all_recent_tweets(query="python", bearer_token='', lang="lang:pt", max_results="100"):
+def get_all_recent_tweets(query, bearer_token, lang, max_results):
     tweets_list = []
     url = "https://api.twitter.com/2/tweets/search/recent"
     headers = {
@@ -53,9 +51,9 @@ def get_all_recent_tweets(query="python", bearer_token='', lang="lang:pt", max_r
 
 
 
-def tweets_search(query = "python",bearer_token = bearer_token,lang = "lang:pt", max_results = "100"):
-    print(f"##### Tweets Search: Buscando {query}...")    
-    final_df = get_all_recent_tweets(query, max_results)
+def tweets_search(query,bearer_token,lang , max_results):
+    print(f"##### Tweets Search: Buscando {query} Max results {max_results}...")    
+    final_df = get_all_recent_tweets(query,bearer_token,lang, max_results)
     final_df.to_excel("outputs/tweets_search_output.xlsx")    
     
     return final_df

@@ -19,7 +19,9 @@ def tweetssearch():
         data = request.get_json()    
         query = data.get('query', None)
         print(query)
-        df = tweets_search(query, max_results=10)    
+        b_token = utils_conf.get_api_key('bearer_token')
+        max_results = utils_conf.get_api_key('max_tweets')
+        df = tweets_search(query,b_token,"lang:pt" ,max_results)    
         json_data = df.to_json(orient='records')
         
         return jsonify(json_data=json_data)            
@@ -54,23 +56,37 @@ def getkeys():
         keys = []
         keys.append(utils_conf.get_api_key('bearer_token'))
         keys.append(utils_conf.get_api_key('OPENAI_KEY'))
+        keys.append(utils_conf.get_api_key('max_tweets'))
+        
+        #print(f"#### Data sent {keys}")
     except:
         return jsonify("Erro ao carregar as APIs")            
         
     return jsonify(keys)          
+@app.route('/api/setkeys', methods=['POST'])
+def setkeys():
+    if request.is_json:
+        # Get the JSON data
+        data = request.get_json()    
+        print(f"##### Config received: {data}")
+        twitter_key = data.get('twitter_key', None)
+        openai_key = data.get('openai_key', None)
+        max_tweets = data.get('max_tweets', None)
+        
+        utils_conf.saveApiKey('bearer_token', twitter_key)
+        utils_conf.saveApiKey('OPENAI_KEY', openai_key)
+        utils_conf.saveApiKey('max_tweets', str(max_tweets))
+        
+        print("##### Config Updated!")
+        return jsonify('200')            
+        
+    
+    return None
 
 @app.route('/api/downloadsearch')
 def downloadsearch(filename='tweets_search_output.xlsx'):
     return send_from_directory('outputs', filename, as_attachment=True)
   
     
-@app.route('/api/test1', methods=['GET'])
-def test1():
-    df = pd.read_excel('outputs/text_classification_output.xlsx')
-    df = pd.DataFrame(df['Texto'])    
-    json_data = df.to_json(orient='records')
-    
-    return jsonify(json_data)            
-
 if __name__ == '__main__':
     app.run(debug=True, port=8080)

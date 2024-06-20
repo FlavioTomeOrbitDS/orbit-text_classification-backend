@@ -21,8 +21,6 @@ embedding_model = "text-embedding-3-small"
 embedding_encoding = "cl100k_base"
 max_tokens = 8000  # the maximum for text-
 
-#OpenAI API Key
-client = OpenAI(api_key = utils_conf.get_api_key('OPENAI_KEY'))
 
 
 def get_current_datetime():
@@ -53,7 +51,7 @@ def limpar_texto(texto):
     texto = ''.join([char for char in texto if char not in string.punctuation])
     return texto
 
-def gen_cluster_description(n_clusters, cluster_column, text_column, max_length, sentimento, df):
+def gen_cluster_description(client,n_clusters, cluster_column, text_column, max_length, sentimento, df):
     samples_per_cluster = 5
     cluster_descriptions = []
     
@@ -123,7 +121,7 @@ Retorne somente a categoria gerada, sem nenhuma outra informação.
 
     return cluster_descriptions
 
-def get_embedding(text: str, model="text-embedding-3-small", **kwargs) -> List[float]:
+def get_embedding(client,text: str, model="text-embedding-3-small", **kwargs) -> List[float]:
     # replace newlines, which can negatively affect performance.
     text = text.replace("\n", " ")
 
@@ -149,7 +147,7 @@ def get_clusters(n_clusters,embedding_column,cluster_column,df):
 
   return df_final_clusters
 
-def sentiment_analysis(text):
+def sentiment_analysis(client,text):
     # Initialize the OpenAI API client with your API key
     openai.api_key = "your_openai_api_key"
     
@@ -282,6 +280,9 @@ def generate_js_dictionary(file_path = 'outputs/text_classification_output.xlsx'
 
  #************************** MAIN FUNCTIONS############################### 
 def text_classification():
+    #OpenAI API Key
+    client = OpenAI(api_key = utils_conf.get_api_key('OPENAI_KEY'))
+    
     print(f"#### Lendo dataframe...{get_current_datetime()}")
     df = le_dataframe()
     
@@ -295,7 +296,7 @@ def text_classification():
     #Análise de sentimentos
     print(f"##### Fazendo a analise de sentimentos...{get_current_datetime()}")
     sentimentos = []
-    df.Texto.apply(lambda x : sentimentos.append(sentiment_analysis(x)))
+    df.Texto.apply(lambda x : sentimentos.append(sentiment_analysis(client,x)))
     df = df.dropna(subset=['Texto'])
     df['Sentimento'] = sentimentos
     df['Sentimento'] = df['Sentimento'].replace("'negativo'", "negativo")
@@ -307,7 +308,7 @@ def text_classification():
     
     #Embedding
     print(f"####Embedding...{get_current_datetime()}")
-    df["embedding"] = df.Texto.apply(lambda x: get_embedding(x, model=embedding_model))
+    df["embedding"] = df.Texto.apply(lambda x: get_embedding(client,x, model=embedding_model))
     df.to_csv("text_embeddings.csv")
 
     #Gerando os Clusters
@@ -315,7 +316,7 @@ def text_classification():
     datafile_path = "text_embeddings.csv"
     df = pd.read_csv(datafile_path)
     df["embedding"] = df.embedding.apply(literal_eval).apply(np.array)  # convert string to numpy array        
-    df_final_clusters = get_clusters(QTD_TAGS,'embedding', 'Cluster',df)
+    df_final_clusters = get_clusters(client,QTD_TAGS,'embedding', 'Cluster',df)
     
     #Gerando as descrições dos clusters
     print(f"##### Gerando as descrições das tags...{get_current_datetime()}")
@@ -325,7 +326,7 @@ def text_classification():
         print(f"Processando sentimento {sentimento}")
         cluster_descriptions = []
         temp_df = df_final_clusters[df_final_clusters['Sentimento'] == sentimento]
-        aux = gen_cluster_description(QTD_TAGS, 'Cluster', 'Texto', 8,sentimento,temp_df)
+        aux = gen_cluster_description(client,QTD_TAGS, 'Cluster', 'Texto', 8,sentimento,temp_df)
         cluster_descriptions.append(aux)
         temp_df['Cluster_Description'] = temp_df['Cluster'].apply(lambda x: cluster_descriptions[0][x])
         final_df = pd.concat([final_df, temp_df])
@@ -337,7 +338,7 @@ def text_classification():
 
     for i in final_df['Cluster_Description'].unique().tolist():
         lista_cluster_desc_embed['desc'].append(i)
-        lista_cluster_desc_embed['embedding'].append(get_embedding(i, model=embedding_model))
+        lista_cluster_desc_embed['embedding'].append(get_embedding(client,i, model=embedding_model))
 
     final_df = adicionar_tags_embedding(final_df, lista_cluster_desc_embed)
     
@@ -350,7 +351,7 @@ def text_classification():
         print(f"Processando sentimento {sentimento}")
         cluster_descriptions = []
         temp_df = df_final_clusters[df_final_clusters['Sentimento'] == sentimento]
-        aux = gen_cluster_description(QTD_CLASSIFIC,'Tags_cluster', 'Cluster_Description',4,sentimento,temp_df)
+        aux = gen_cluster_description(client,QTD_CLASSIFIC,'Tags_cluster', 'Cluster_Description',4,sentimento,temp_df)
         cluster_descriptions.append(aux)
         temp_df['Categoria'] = temp_df['Tags_cluster'].apply(lambda x: cluster_descriptions[0][x])
         final_df = pd.concat([final_df, temp_df])
@@ -370,7 +371,9 @@ def text_classification():
     return final_df
 
 def main():    
-    text_classification()
+    
+
+    text_classification(client)
 
 
 if __name__ == "__main__":
